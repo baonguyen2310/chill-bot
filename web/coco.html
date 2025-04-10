@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Object Detection</title>
+    <!-- Add TensorFlow.js -->
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs"></script>
+    <!-- Add COCO-SSD model -->
+    <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/coco-ssd"></script>
+
+    <style>
+        h1 {
+            color: #22ff00;
+        }
+        #micButton {
+            padding: 10px 20px;
+            background-color: #22ff00;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 10px;
+        }
+        #speechFeedback {
+            margin: 10px;
+            padding: 10px;
+            min-height: 30px;
+            color: #22ff00;
+            font-size: 20px;
+        }
+    </style>
+
+</head>
+<body>
+    <div style="position: relative;">
+        <video id="video" width="640" height="480" autoplay></video>
+        <canvas id="canvas" width="640" height="480" style="position: absolute; left: 0; top: 0;"></canvas>
+    </div>
+    <button id="micButton">🎤 Hỏi</button>
+    <div id="speechFeedback"></div>
+
+    <script>
+        const SPEED = 50;
+        const SEND_INTERVAL = 100; // 100ms
+        let throttle = 0;
+        let steering = 0;
+        let lastSendTime = 0;
+
+        // UDP setup through WebRTC
+        const socket = new WebSocket('ws://localhost:8080');
+        socket.onmessage = (event) => {
+            if (event.data.startsWith('V:')) {
+                const voltage = parseFloat(event.data.substring(2));
+                document.getElementById('voltage').textContent = `Battery: ${voltage.toFixed(2)}V`;
+            }
+        };
+
+        function sendControl() {
+            const now = Date.now();
+            if (now - lastSendTime >= SEND_INTERVAL) {
+                const command = `1,${Math.round(throttle)},${Math.round(steering)}`;
+                socket.send(command);
+                lastSendTime = now;
+            }
+        }
+
+        setInterval(sendControl, 10);
+
+        // Device state management
+        const deviceStates = {
+            servo: 90,
+            fan: false,
+            laze: false
+        };
+
+
+
+
+        const video = document.getElementById('video');
+        const canvas = document.getElementById('canvas');
+        const context = canvas.getContext('2d');
+        const micButton = document.getElementById('micButton');
+        const speechFeedback = document.getElementById('speechFeedback');
+        
+        // Add Vietnamese mapping
+        const vietnameseLabels = {
+            'person': 'con người',
+            'bicycle': 'xe đạp',
+            'car': 'xe hơi',
+            'motorcycle': 'xe máy',
+            'airplane': 'máy bay',
+            'bus': 'xe buýt',
+            'train': 'tàu hỏa',
+            'truck': 'xe tải',
+            'boat': 'thuyền',
+            'traffic light': 'đèn giao thông',
+            'fire hydrant': 'vòi nước chữa cháy',
+            'stop sign': 'biển báo dừng',
+            'parking meter': 'đồng hồ đỗ xe',
+            'bench': 'ghế dài',
+            'bird': 'con chim',
+            'cat': 'con mèo',
+            'dog': 'con chó',
+            'horse': 'con ngựa',
+            'sheep': 'con cừu',
+            'cow': 'con bò',
+            'elephant': 'con voi',
+            'bear': 'con gấu',
+            'zebra': 'ngựa vằn',
+            'giraffe': 'hươu cao cổ',
+            'backpack': 'ba lô',
+            'umbrella': 'ô dù',
+            'handbag': 'túi xách',
+            'tie': 'cà vạt',
+            'suitcase': 'vali',
+            'frisbee': 'đĩa ném',
+            'skis': 'ván trượt tuyết',
+            'snowboard': 'ván trượt tuyết',
+            'sports ball': 'bóng thể thao',
+            'kite': 'diều',
+            'baseball bat': 'gậy bóng chày',
+            'baseball glove': 'găng tay bóng chày',
+            'skateboard': 'ván trượt',
+            'surfboard': 'ván lướt sóng',
+            'tennis racket': 'vợt tennis',
+            'bottle': 'chai',
+            'wine glass': 'ly rượu',
+            'cup': 'cốc',
+            'fork': 'nĩa',
+            'knife': 'dao',
+            'spoon': 'thìa',
+            'bowl': 'bát',
+            'banana': 'chuối',
+            'apple': 'táo',
+            'sandwich': 'bánh mì kẹp',
+            'orange': 'cam',
+            'broccoli': 'bông cải xanh',
+            'carrot': 'cà rốt',
+            'hot dog': 'xúc xích',
+            'pizza': 'pizza',
+            'donut': 'bánh rán',
+            'cake': 'bánh ngọt',
+            'chair': 'ghế',
+            'couch': 'ghế sofa',
+            'potted plant': 'cây cảnh',
+            'bed': 'giường',
+            'dining table': 'bàn ăn',
+            'toilet': 'nhà vệ sinh',
+            'tv': 'ti vi',
+            'laptop': 'máy tính xách tay',
+            'mouse': 'chuột máy tính',
+            'remote': 'điều khiển',
+            'keyboard': 'bàn phím',
+            'cell phone': 'điện thoại',
+            'microwave': 'lò vi sóng',
+            'oven': 'lò nướng',
+            'toaster': 'máy nướng bánh mì',
+            'sink': 'bồn rửa',
+            'refrigerator': 'tủ lạnh',
+            'book': 'sách',
+            'clock': 'đồng hồ',
+            'vase': 'bình hoa',
+            'scissors': 'kéo',
+            'teddy bear': 'gấu bông',
+            'hair drier': 'máy sấy tóc',
+            'toothbrush': 'bàn chải đánh răng'
+        };
+
+        let currentPredictions = [];
+
+        // Speech Recognition setup
+        const recognition = new webkitSpeechRecognition();
+        recognition.lang = 'vi-VN';
+        recognition.continuous = false;
+        recognition.interimResults = false;
+
+        micButton.addEventListener('click', () => {
+            recognition.start();
+        });
+
+        recognition.onstart = () => {
+            speechFeedback.textContent = "Đang nghe...";
+            micButton.disabled = true;
+        };
+
+        recognition.onend = () => {
+            micButton.disabled = false;
+            setTimeout(() => {
+                speechFeedback.textContent = "";
+            }, 2000);
+        };
+
+        recognition.onresult = (event) => {
+            const question = event.results[0][0].transcript.toLowerCase();
+            speechFeedback.textContent = event.results[0][0].transcript;
+            if (question.startsWith('đây là')) {
+                const searchTerm = question.replace('đây là', '').replace('đúng không', '').trim();
+                checkObject(searchTerm);
+            }
+        };
+
+        recognition.onaudiostart = () => {
+            speechFeedback.textContent = "Đang nghe...";
+        };
+
+        recognition.onspeechstart = () => {
+            speechFeedback.textContent = "Đang nhận diện...";
+        };
+
+        recognition.onerror = (event) => {
+            speechFeedback.textContent = "Lỗi: " + event.error;
+            micButton.disabled = false;
+        };
+
+        function checkObject(searchTerm) {
+            const speech = new SpeechSynthesisUtterance();
+            speech.lang = 'vi-VN';
+
+            // Convert English labels to Vietnamese for comparison
+            const foundObject = currentPredictions.some(pred => 
+                vietnameseLabels[pred.class]?.toLowerCase() === searchTerm.toLowerCase() &&
+                pred.score >= 0.7
+            );
+
+            speech.text = foundObject ? 
+                `Phải, Tôi thấy ${searchTerm} trong camera với độ chính xác là ${Math.round(currentPredictions.find(pred => vietnameseLabels[pred.class]?.toLowerCase() === searchTerm.toLowerCase()).score * 100)}%` : 
+                `Không, Tôi không thấy ${searchTerm} nào trong camera`;
+
+            window.speechSynthesis.speak(speech);
+
+            if (foundObject) {
+                // Create nodding sequence (up-down-up-down)
+                const nodSequence = [
+                    { angle: 0, duration: 100 },
+                    { angle: 180, duration: 100 },
+                    { angle: 0, duration: 100 },
+                    { angle: 180, duration: 100 },
+                    { angle: 90, duration: 100 }  // Return to center position
+                ];
+
+                let time = 0;
+                nodSequence.forEach(move => {
+                    setTimeout(() => {
+                        deviceStates.servo = move.angle;
+                        socket.send(`ESP2:SERVO2:${move.angle}`);
+                        console.log(`ESP2:SERVO2:${move.angle}`);
+                    }, time);
+                    time += move.duration;
+                });
+            }
+            else {
+                // Implement head shaking movement (left-right-left-right)
+                const shakeSequence = [
+                    { steering: SPEED, duration: 200 },
+                    { steering: -SPEED, duration: 200 },
+                    { steering: SPEED, duration: 200 },
+                    { steering: -SPEED, duration: 200 },
+                    { steering: 0, duration: 0 }
+                ];
+
+                let time = 0;
+                shakeSequence.forEach(move => {
+                    setTimeout(() => {
+                        steering = move.steering;
+                    }, time);
+                    time += move.duration;
+                });
+            }
+        }
+
+        // Load camera
+        if (navigator.mediaDevices.getUserMedia) {
+            navigator.mediaDevices.getUserMedia({ video: true })
+                .then(function (stream) {
+                    video.srcObject = stream;
+                })
+                .catch(function (error) {
+                    console.log("Camera error: ", error);
+                });
+        }
+
+        async function loadObjectDetector() {
+            try {
+                objectDetector = await cocoSsd.load();
+                console.log('COCO-SSD Model loaded');
+            } catch (error) {
+                console.error('Error loading COCO-SSD model:', error);
+            }
+        }
+
+        // Load model khi trang được load
+        loadObjectDetector();
+
+        // Load COCO-SSD model
+        cocoSsd.load().then(model => {
+            // Detect objects every frame
+            setInterval(() => {
+                model.detect(video).then(predictions => {
+                    // Update current predictions
+                    currentPredictions = predictions;
+
+                    // Clear canvas
+                    context.clearRect(0, 0, canvas.width, canvas.height);
+                    
+                    // Draw predictions with confidence > 70%
+                    predictions.forEach(prediction => {
+                        if (prediction.score >= 0.7) {
+                            context.beginPath();
+                            context.strokeStyle = "#22ff00";
+                            context.lineWidth = 5;
+                            context.rect(
+                                prediction.bbox[0],
+                                prediction.bbox[1],
+                                prediction.bbox[2],
+                                prediction.bbox[3]
+                            );
+                            context.stroke();
+
+                            // Draw label with Vietnamese translation if available
+                            const label = vietnameseLabels[prediction.class] || prediction.class;
+                            context.fillStyle = "#22ff00";
+                            context.font = "30px Arial";
+                            context.fillText(
+                                `${label} ${Math.round(prediction.score * 100)}%`,
+                                prediction.bbox[0],
+                                prediction.bbox[1] > 10 ? prediction.bbox[1] - 5 : 10
+                            );
+                        }
+                    });
+                });
+            }, 100); // Detect every 100ms
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,22 @@
+{
+  "dependencies": {
+    "cors": "^2.8.5",
+    "edge-tts-node": "^1.5.7",
+    "express": "^4.21.2",
+    "node-edge-tts": "^1.2.7",
+    "play-sound": "^1.1.6",
+    "ws": "^8.18.1"
+  },
+  "name": "esp8266balance_v2",
+  "version": "1.0.0",
+  "description": "http://192.168.4.1/update",
+  "main": "server.js",
+  "type": "module",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node --watch server.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC"
+}

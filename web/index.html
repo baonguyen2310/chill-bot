@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Balance Robot Control</title>
+    <script src="https://ajax.googleapis.com/ajax/libs/model-viewer/3.4.0/model-viewer.min.js"></script>
+    <script src="./face-api.min.js"></script>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <!-- Add recognition display div after body opening tag -->
+    <div id="recognition-display" class="recognition-display" style="display: none;"></div>
+
+    <div class="container">
+
+        <!-- Voice Control Card -->
+        <div class="card">
+            <div class="card-header">
+                <h2 class="card-title">Voice Control</h2>
+            </div>
+            <div class="status" id="voltage">Battery: -- V</div>
+            <div class="mode-buttons">
+                <button class="button button-primary active" data-mode="sassy">Nghiêm Túc</button>
+                <button class="button button-primary" data-mode="cute">Dễ Thương</button>
+                <button class="button button-primary" data-mode="serious">Chảnh Choẹ</button>
+            </div>
+            <button class="button button-primary" id="voice-control-btn">Start Voice Control</button>
+            
+            <!-- Add text command input and submit button -->
+            <div class="input-group" style="margin-top: 1rem;">
+                <input type="text" id="text-command" placeholder="Type your command here...">
+                <button class="button button-primary" id="submit-command">Submit Command</button>
+            </div>
+
+            <div id="voice-output" class="status">Voice commands ready...</div>
+            <div id="chat-response"></div>
+        </div>
+
+        <!-- Face Detection Card -->
+        <div class="card">
+            <div class="card-header">
+                <h2 class="card-title">Face & Object Detection</h2>
+                <div class="input-group">
+                    <button class="button button-primary" id="camera-toggle">Turn Camera On</button>
+                    <button class="button button-primary" id="detection-toggle">Turn Detection On</button>
+                    <button class="button button-primary" id="emotion-toggle">Turn Emotion On</button>
+                    <button class="button button-primary" id="object-toggle">Turn Object Detection On</button>
+                </div>
+            </div>
+            <div class="face-detection">
+                <video id="video" autoplay muted></video>
+                <canvas id="canvas"></canvas>
+            </div>
+            <div id="expression" class="status">Expression: Neutral</div>
+            <div class="input-group">
+                <input type="text" id="face-name" placeholder="Enter name">
+                <button class="button button-primary" id="register-face">Register Face</button>
+            </div>
+            <div id="faces-list" class="status">Registered Faces:</div>
+        </div>
+    </div>
+
+    <audio id="audio" style="display: none;"></audio>
+    <script src="gemini.js"></script>
+    <script src="script.js"></script>
+</body>
+</html>
